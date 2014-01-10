@@ -10,39 +10,35 @@ DEFAULT_MODE="only_hour"
 def sixseg_display(mode=DEFAULT_MODE):
     """
     Format the date/time to write to epic clock
-    """    
+    """
     if(mode == "only_hour"):
         output = time.strftime("%H%M%S") + '\n'
     elif(mode == "only_date"):
         output = time.strftime("%d%m%y") + '\n'
     else:
         print 'Invalid option'
-    
+
     return output
 
-def interval_switch(dev_file, interval=DEFAULT_INTERVAL):
+def interval_switch(interval, dev_fd):
 
-    f = open(dev_file, "w")    
-
-    try:
-        while(True):
-            f.write(sixseg_display("only_hour"))
-            #print sixseg_display("only_hour")
-            time.sleep(interval) 
-            f.write(sixseg_display("only_date"))
-            #print sixseg_display("only_date")
-            time.sleep(interval)
-    except (KeyboardInterrupt, SystemExit):
-        f.close()
-        sys.exit()
+    while(True):
+        dev_fd.write(sixseg_display("only_hour"))
+        dev_fd.flush()
+        time.sleep(interval)
+        dev_fd.write(sixseg_display("only_date"))
+        dev_fd.flush()
+        time.sleep(interval)
 
 if __name__ == '__main__':
 
     f = open(CONF_DEV_FILE, "r")
-    devfile = f.read().split('\n')[0]
+    dev_file = f.read().split('\n')[0]
     f.close()
 
-    if(len(sys.argv) >= 3):
-        interval_switch(str(sys.argv[1]), int(sys.argv[2]))
-    else: 
-        interval_switch(devfile, 2)  
+    dev_fd = open(dev_file, "w")
+
+    if(len(sys.argv) >= 2):
+        interval_switch(int(sys.argv[1]), dev_fd)
+    else:
+        interval_switch(DEFAULT_INTERVAL, sys.stdout)

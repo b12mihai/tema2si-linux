@@ -17,9 +17,11 @@ urls = (
     '/ConfigDisplay',   'ConfigDisplay'
 )
 
-
 #Used by subprocess, in order to be killed anytime
 proc1 = None
+
+#Device driver
+dev_fd = None
 
 #Configure interface logger.ing
 class SizedTimedRotatingFileHandler(handlers.TimedRotatingFileHandler):
@@ -135,26 +137,32 @@ class ConfigDisplay:
         dev_file = f.read().split('\n')[0]
         f.close()
 
+        dev_fd = open(dev_file, "w")
+
         if(i.configdisp == '0' or i.configdisp == '1'):
             if(proc1 != None):
+                if(dev_fd != None):
+                    dev_fd.close()
                 proc1.kill()
 
         if(i.configdisp == '0'):
         #se va afisa doar ora
-            f = open(dev_file, "w")
-            f.write(sixseg_display.sixseg_display("only_hour"))
-            f.close()
-            logger.info("User wanted to print only_hour" % (cmd))
+            dev_fd.write(sixseg_display.sixseg_display("only_hour"))
+            dev_fd.close()
+            logger.info("User wanted to print only_hour")
 
         elif(i.configdisp == '1'):
         #se va afisa doar data
-            f = open(dev_file, "w")
-            f.write(sixseg_display.sixseg_display("only_date"))
-            f.close()
+            dev_fd.write(sixseg_display.sixseg_display("only_date"))
+            dev_fd.close()
+            logger.info("User wanted to print only date")
+
         elif(i.configdisp == '2'):
         #povestea cu intervalul etc.
-            cmd = "/home/root/tema2/sixseg_display.py %s %s" % (str(i.configdisp), str(i.dispinterval))
+            cmd = "/home/root/tema2/sixseg_display.py %s" % (str(i.dispinterval))
             proc1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+            logger.info("User wanted to print with interval. Command issued to system was: %s " % (cmd) )
+
         else:
             #We should not be here
             assert(0)
