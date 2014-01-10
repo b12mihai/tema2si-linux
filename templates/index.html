@@ -1,0 +1,54 @@
+$def with (name)
+
+$if name:
+    I just wanted to say <em>hello</em> to $name.
+$else:
+    <em>Hello</em>, world!
+
+<form method="post" action="ControlNTP">
+
+<p>De aici puteti activa sau dezactiva serviciul de ntp:
+Introduceti doar <strong>start</strong> sau <strong>stop</strong> (cu litere mici)
+(si apoi submit) <br />
+<input type="text" name="controlNTP" value="start" /> <input type="submit" value="Submit NTP Command" />
+</form>
+</p>
+
+<form method="post" action="DevPath">
+
+<p>De aici puteti seta calea din <strong>/etc/epicclockpath</strong>  <br />
+<input type="text" name="path" value="/dev/epicclock" /> <input type="submit" value="Submit path" />
+</p>
+
+</form>
+
+<form method="post" action="SetTimezone">
+
+<p>De aici puteti seta Timezone-ul <br />
+Scriptul, in spate copiaza din /usr/share/zoneinfo in /etc/localtime astfel: valoarea introdusa
+mai jos e "append"-ui la string-ul /usr/share/zoneinfo/ si e copiat in /etc/localtime <br /> <br/>
+
+Exemplu: Userul introduce UTC => e copiat /usr/share/zoneinfo/UTC in /etc/localtime. Daca
+vei da date, vei vedea timezone UTC. <br /><br />
+Userul introduce Europe/Bucharest => va fi folosit timpul romanesc
+
+<input type="text" name="timezone" value="Europe/Bucharest" /> <input type="submit" value="Submit Timezone" />
+</p>
+
+</form>
+
+
+  <form method="post" action="ConfigDisplay">
+      Configurarea afișării, selecție între trei moduri:
+      <select id="configdisp" name="configdisp">
+        <option selected="selected" value="0"> se afișează doar ora </option>
+        <option value="1">se afișează doar data</option>
+        <option value="2">se ciclează între afișarea datei și a orei cu interval configurabil (default: 5 secunde, dar se poate schimba din inputtextul de mai jos:)</option>
+      </select>
+<input type="text" name="dispinterval" value="5" /> 
+      <br />
+
+      <input type="submit" title="Submit"/>
+    </form>
+
+
