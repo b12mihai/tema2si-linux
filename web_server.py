@@ -1,11 +1,10 @@
 import web
-import sys
 import SimpleHTTPServer
 import cgi
+
+import sys
 import os
-import logging
-import subprocess
-import logging.handlers as handlers
+from textwrap import dedent
 
 import sixseg_display
 
@@ -23,51 +22,43 @@ proc1 = None
 #Device driver
 dev_fd = None
 
-#Configure interface logger.ing
-class SizedTimedRotatingFileHandler(handlers.TimedRotatingFileHandler):
-    """
-    Handler for logging to a set of files, which switches from one file
-    to the next when the current file reaches a certain size, or at certain
-    timed intervals
-    """
-    def __init__(self, filename, mode='a', maxBytes=0, backupCount=0, encoding=None,
-                 delay=0, when='h', interval=1, utc=False):
-        # If rotation/rollover is wanted, it doesn't make sense to use another
-        # mode. If for example 'w' were specified, then if there were multiple
-        # runs of the calling application, the logs from previous runs would be
-        # lost if the 'w' is respected, because the log file would be truncated
-        # on each run.
-        if maxBytes > 0:
-            mode = 'a'
-        handlers.TimedRotatingFileHandler.__init__(
-            self, filename, when, interval, backupCount, encoding, delay, utc)
-        self.maxBytes = maxBytes
+#Configure logging
+import logging
+import logging.handlers
+import subprocess
 
-
+#This is a default filename. If directory does not
+#exist we will create it
 log_filename='/var/log/si_server/actions.log'
-
 directory = os.path.dirname(log_filename)
-
 try:
     os.stat(directory)
 except:
     os.mkdir(directory)
 
-logger=logging.getLogger('Tema2SI_Linux_Logger')
-logger.setLevel(logging.DEBUG)
-handler=SizedTimedRotatingFileHandler(
-        log_filename, maxBytes=100, backupCount=5,
-        when='s',interval=10,
-        # encoding='bz2',  # uncomment for bz2 compression
-        )
-logger.addHandler(handler)
+logger=logging.getLogger('Tema2SI_WebServer_Logger')
 
+#This if is because Python is, honestly, stupid!
+if not len(logger.handlers):
+    logger.setLevel(logging.DEBUG)
+    fmt = logging.Formatter("[%(asctime)s] %(name)s : %(levelname)s : %(message)s")
+
+    # Add the log message handler to the logger
+    # Using python`s logrotation
+    handler = logging.handlers.RotatingFileHandler(log_filename, mode='a',
+                                                    maxBytes=1000000,
+                                                    backupCount=5)
+    handler.setFormatter(fmt)
+    logger.addHandler(handler)
+
+#Let's also configure logging of the stdout:
+
+# HTML web.py rendering
 render = web.template.render('templates/')
 
 class index:
     def GET(self):
-        #print 'Our PID is: ', os.getpid()
-        logger.info("User went to homepage")
+        logger.debug("User with IP=%s went to homepage" % str(web.ctx['ip']))
         logger.debug("Server's PID is %s" % str(os.getpid()))
         return render.index("Whoever looks at this homework")
 
@@ -81,18 +72,20 @@ class ControlNTP:
 
     def POST(self):
         i = web.input()
-        logger.info("User wants to control NTP")
+
         cmd = i.controlNTP
+        logger.info("User-ul cu IP-ul %s a trimis comanda %s daemonului NTP"
+        % (str(web.ctx['ip']), str(i.controlNTP)))
 
         if cmd == 'start':
             proc = subprocess.Popen("/etc/init.d/ntpd start && cat /var/run/ntp.pid", stdout=subprocess.PIPE, shell=True)
             (out, err) = proc.communicate()
-            logger.info("Command /etc/init.d/ntpd start && cat /var/run/ntp.pid was issued to the system")
+            logger.debug("Command /etc/init.d/ntpd start && cat /var/run/ntp.pid was issued to the system")
             return render.ntpsubmit(cmd="start",status=str(out)+str(err))
         elif cmd == 'stop':
             proc = subprocess.Popen("/etc/init.d/ntpd stop", stdout=subprocess.PIPE, shell=True)
             (out, err) = proc.communicate()
-            logger.info("Command /etc/init.d/ntpd stop was issued to the system")
+            logger.debug("Command /etc/init.d/ntpd stop was issued to the system")
             return render.ntpsubmit(cmd="stop",status=str(out)+str(err))
         else:
             logger.debug("Invalid NTP command entered by user")
@@ -105,7 +98,8 @@ class DevPath:
     def POST(self):
         i = web.input()
         f = open('/etc/epicclockpath', 'w')
-        logger.info("User wants to write %s to /etc/epicclockpath" % (i.path))
+        logger.info("User-ul cu IP-ul %s a scris %s in /etc/epicclockpath"
+        % (str(web.ctx['ip']), str(i.path)))
         f.write(i.path + '\n')
         f.close()
         return render.epicclockpath(str(i.path))
@@ -116,14 +110,20 @@ class SetTimezone:
 
     def POST(self):
         i = web.input()
+        proc = subprocess.Popen("date +%Z", stdout=subprocess.PIPE, shell=True)
+        (out, err) = proc.communicate()
+        crt_tz = out
 
         tzset_cmd = "cp /usr/share/zoneinfo/%s /etc/localtime" % (i.timezone)
+        logger.debug("Command %s was issued to system" % tzset_cmd)
 
         proc = subprocess.Popen(tzset_cmd, stdout=subprocess.PIPE, shell=True)
         (out, err) = proc.communicate()
-        logger.info("Command %s was issued to system" % (tzset_cmd))
         proc = subprocess.Popen("date", stdout=subprocess.PIPE, shell=True)
         (out, err) = proc.communicate()
+
+        logger.info("Userul cu IP-ul %s a schimbat timezone-ul din %s in %s"
+        % ( str(web.ctx['ip']) , str(crt_tz), str(i.timezone) ) )
         return render.tzone(str(i.timezone), str(out))
 
 class ConfigDisplay:
@@ -137,31 +137,31 @@ class ConfigDisplay:
         dev_file = f.read().split('\n')[0]
         f.close()
 
-        dev_fd = open(dev_file, "w")
-
         if(i.configdisp == '0' or i.configdisp == '1'):
             if(proc1 != None):
-                if(dev_fd != None):
-                    dev_fd.close()
                 proc1.kill()
+
+        dev_fd = open(dev_file, "w")
 
         if(i.configdisp == '0'):
         #se va afisa doar ora
             dev_fd.write(sixseg_display.sixseg_display("only_hour"))
             dev_fd.close()
-            logger.info("User wanted to print only_hour")
+            logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: doar timpul"
+            % (str(web.ctx['ip'])))
 
         elif(i.configdisp == '1'):
         #se va afisa doar data
             dev_fd.write(sixseg_display.sixseg_display("only_date"))
             dev_fd.close()
-            logger.info("User wanted to print only date")
+            logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: doar data" % (str(web.ctx['ip'])))
 
         elif(i.configdisp == '2'):
         #povestea cu intervalul etc.
             cmd = "/home/root/tema2/sixseg_display.py %s" % (str(i.dispinterval))
             proc1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-            logger.info("User wanted to print with interval. Command issued to system was: %s " % (cmd) )
+            logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: se cicleaza intre afisarea datei si a orei cu intervalul %s"
+            % (str(web.ctx['ip']), str(i.dispinterval) ) )
 
         else:
             #We should not be here
