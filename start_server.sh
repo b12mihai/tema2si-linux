@@ -10,5 +10,11 @@ else
     PORT=1991
 fi
 
-mkdir /var/log/si_server
+#If we really want the webserver on PORT 80
+if [ $PORT -eq 80 ]; then
+	echo "This action is needed in order to start python"
+	/etc/init.d/lighttpd stop
+fi
+
+#mkdir /var/log/si_server
 python web_server.py $PORT
