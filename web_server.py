@@ -4,16 +4,19 @@ import cgi
 
 import sys
 import os
-from textwrap import dedent
+import subprocess
 
 import sixseg_display
+import SILogging
 
 urls = (
     '/',        'index',
     '/ControlNTP',  'ControlNTP',
     '/DevPath',     'DevPath',
     '/SetTimezone',     'SetTimezone',
-    '/ConfigDisplay',   'ConfigDisplay'
+    '/ConfigDisplay',   'ConfigDisplay',
+    '/ChangeLog',       'ChangeLog',
+    '/SetDateTime',       'SetDateTime'
 )
 
 #Used by subprocess, in order to be killed anytime
@@ -22,36 +25,8 @@ proc1 = None
 #Device driver
 dev_fd = None
 
-#Configure logging
-import logging
-import logging.handlers
-import subprocess
-
-#This is a default filename. If directory does not
-#exist we will create it
-log_filename='/var/log/si_server/actions.log'
-directory = os.path.dirname(log_filename)
-try:
-    os.stat(directory)
-except:
-    os.mkdir(directory)
-
-logger=logging.getLogger('Tema2SI_WebServer_Logger')
-
-#This if is because Python is, honestly, stupid!
-if not len(logger.handlers):
-    logger.setLevel(logging.DEBUG)
-    fmt = logging.Formatter("[%(asctime)s] %(name)s : %(levelname)s : %(message)s")
-
-    # Add the log message handler to the logger
-    # Using python`s logrotation
-    handler = logging.handlers.RotatingFileHandler(log_filename, mode='a',
-                                                    maxBytes=1000000,
-                                                    backupCount=5)
-    handler.setFormatter(fmt)
-    logger.addHandler(handler)
-
-#Let's also configure logging of the stdout:
+si_log = SILogging.SILogging()
+logger = si_log.logger
 
 # HTML web.py rendering
 render = web.template.render('templates/')
@@ -60,7 +35,7 @@ class index:
     def GET(self):
         logger.debug("User with IP=%s went to homepage" % str(web.ctx['ip']))
         logger.debug("Server's PID is %s" % str(os.getpid()))
-        return render.index("Whoever looks at this homework")
+        return render.index("Not set from web interface")
 
     def POST(self):
         i = web.input()
@@ -86,7 +61,7 @@ class ControlNTP:
             proc = subprocess.Popen("/etc/init.d/ntpd stop", stdout=subprocess.PIPE, shell=True)
             (out, err) = proc.communicate()
             logger.debug("Command /etc/init.d/ntpd stop was issued to the system")
-            return render.ntpsubmit(cmd="stop",status=str(out)+str(err))
+            return render.ntpsubmit(cmd="stop",status=str(out))
         else:
             logger.debug("Invalid NTP command entered by user")
             return render.ntpsubmit("dummy")
@@ -122,8 +97,7 @@ class SetTimezone:
         proc = subprocess.Popen("date", stdout=subprocess.PIPE, shell=True)
         (out, err) = proc.communicate()
 
-        logger.info("Userul cu IP-ul %s a schimbat timezone-ul din %s in %s"
-        % ( str(web.ctx['ip']) , str(crt_tz), str(i.timezone) ) )
+        logger.info("Userul cu IP-ul %s a schimbat timezone-ul din %s in %s" % ( str(web.ctx['ip']) , str(crt_tz), str(i.timezone) ) )
         return render.tzone(str(i.timezone), str(out))
 
 class ConfigDisplay:
@@ -168,6 +142,60 @@ class ConfigDisplay:
             assert(0)
 
         return render.disp(str(i.configdisp), str(i.dispinterval))
+
+class ChangeLog:
+    def GET(self):
+        print 'TODO'
+
+    def POST(self):
+        i = web.input()
+
+        fname = str(i.filename)
+        logger.info("User-ul cu IP-ul %s a modificat fisierul de log din %s in %s" %
+        (str(web.ctx['ip']), si_log.filename, fname))
+        retval = render.logger(si_log.filename, fname)
+
+        si_log.changeFilename(fname)
+
+        return retval
+
+class SetDateTime:
+    def GET(self):
+        print 'TODO'
+
+    def POST(self):
+        i = web.input()
+        day = "%02d" % (int(i.day))
+        month = "%02d" % (int(i.month))
+        year = str(i.year)
+        hour = "%02d" % (int(i.hour))
+        minute = "%02d" % (int(i.minute))
+
+        if(int(i.usentp) == 0):
+            date_cmd = "date %s%s%s%s%s" % (month, day, hour,
+                                              minute, year)
+           
+            proc = subprocess.Popen(date_cmd, stdout=subprocess.PIPE, shell=True)
+            (out, err) = proc.communicate()
+            
+            logger.debug("Command %s issued to system. Output: %s" % (date_cmd, out))
+
+            logger.info("User-ul cu IP-ul %s a schimbat data: %s-%s-%s, ora: %s:%s" %
+                    (str(web.ctx['ip']), day, month, year, hour, minute))
+            
+            return render.settime(date_cmd, out)
+
+        else:
+            #Configure NTP
+            ntp_cmd = "ntpdate %s" % (str(i.ntpserver))
+            proc = subprocess.Popen(ntp_cmd, stdout=subprocess.PIPE, shell=True)
+            (out, err) = proc.communicate()
+            
+            logger.debug("Command %s issued to system. Output: %s, %s" % (ntp_cmd, out, err))
+            logger.info("User-ul cu IP-ul %s a schimbat data, folosind NTP, server: %s" %
+                            (str(web.ctx['ip']), str(i.ntpserver)))
+                               
+            return render.settime(ntp_cmd, out)            
 
 if __name__ == "__main__":
     app = web.application(urls, globals())
