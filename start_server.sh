@@ -1,6 +1,7 @@
 #!/bin/bash
 
-#python web_server.py &> server.log
+#Configure DNS
+echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
 if [ $# -ge 1 ]; then
     echo "Starting web server on port: $1"
@@ -16,5 +17,5 @@ if [ $PORT -eq 80 ]; then
 	/etc/init.d/lighttpd stop
 fi
 
-#mkdir /var/log/si_server
-python web_server.py $PORT
+mkdir /var/log/si_server/
+python web_server.py $PORT &> /var/log/si_server/srv_stdout.log
