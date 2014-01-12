@@ -1,5 +1,11 @@
 tema2si-linux
 =============
 
-Codul interfetei web a temei 2 de Linux de la SI
+Pentru a rula fara probleme imaginea, am facut urmatorii pasi: 
+
+* Clonarea proiectului Yocto 
+
+```bash
+    git clone git://git.yoctoproject.org/poky yoctoProject 
+```
 
