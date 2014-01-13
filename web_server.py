@@ -19,6 +19,8 @@ urls = (
     '/SetDateTime',       'SetDateTime'
 )
 
+HTML_TEMPLATES_LOC = '/home/root/tema2/templates/'
+
 #Used by subprocess, in order to be killed anytime
 proc1 = None
 
@@ -29,7 +31,7 @@ si_log = SILogging.SILogging()
 logger = si_log.logger
 
 # HTML web.py rendering
-render = web.template.render('templates/')
+render = web.template.render(HTML_TEMPLATES_LOC)
 
 class index:
     def GET(self):
@@ -111,28 +113,26 @@ class ConfigDisplay:
         dev_file = f.read().split('\n')[0]
         f.close()
 
-        if(i.configdisp == '0' or i.configdisp == '1'):
-            if(proc1 != None):
-                proc1.kill()
-
-        dev_fd = open(dev_file, "w")
+        if(proc1 != None):
+            proc1.kill()
 
         if(i.configdisp == '0'):
         #se va afisa doar ora
-            dev_fd.write(sixseg_display.sixseg_display("only_hour"))
-            dev_fd.close()
-            logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: doar timpul"
-            % (str(web.ctx['ip'])))
+            cmd = "/home/root/tema2/sixseg_display.py time %s" % (str(i.dispinterval))
+            proc1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+            logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: doar timpul, la interval de %s secunde"
+            % (str(web.ctx['ip']),str(i.dispinterval) ) )
 
         elif(i.configdisp == '1'):
         #se va afisa doar data
+            dev_fd = open(dev_file, "w")
             dev_fd.write(sixseg_display.sixseg_display("only_date"))
             dev_fd.close()
             logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: doar data" % (str(web.ctx['ip'])))
 
         elif(i.configdisp == '2'):
         #povestea cu intervalul etc.
-            cmd = "/home/root/tema2/sixseg_display.py %s" % (str(i.dispinterval))
+            cmd = "/home/root/tema2/sixseg_display.py time_date_sw %s" % (str(i.dispinterval))
             proc1 = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
             logger.info("User-ul cu IP-ul %s a modificat tipul de afisare: se cicleaza intre afisarea datei si a orei cu intervalul %s"
             % (str(web.ctx['ip']), str(i.dispinterval) ) )
@@ -200,5 +200,4 @@ class SetDateTime:
 if __name__ == "__main__":
     app = web.application(urls, globals())
     app.internalerror = web.debugerror
-    print sixseg_display.sixseg_display.__doc__
     app.run()

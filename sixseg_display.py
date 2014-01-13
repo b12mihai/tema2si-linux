@@ -4,7 +4,7 @@ import time
 import sys
 
 CONF_DEV_FILE="/etc/epicclockpath"
-DEFAULT_INTERVAL=5 #in seconds
+DEFAULT_INTERVAL=1 #in seconds
 DEFAULT_MODE="only_hour"
 
 def sixseg_display(mode=DEFAULT_MODE):
@@ -19,6 +19,13 @@ def sixseg_display(mode=DEFAULT_MODE):
         print 'Invalid option'
 
     return output
+    
+def write_realtime(interval, dev_fd):
+    
+    while(True):
+        dev_fd.write(sixseg_display("only_hour"))
+        time.sleep(interval)
+        dev_fd.flush()
 
 def interval_switch(interval, dev_fd):
 
@@ -35,10 +42,25 @@ if __name__ == '__main__':
     f = open(CONF_DEV_FILE, "r")
     dev_file = f.read().split('\n')[0]
     f.close()
-
+    
+    if(len(sys.argv) < 2):
+        sys.stderr.write("USAGE: sixseg_display mode [interval]. mode can be {time | date | time_date_sw}")
+        sys.exit(-1)
+    
     dev_fd = open(dev_file, "w")
-
-    if(len(sys.argv) >= 2):
-        interval_switch(int(sys.argv[1]), dev_fd)
+    
+    mode = str(sys.argv[1])
+    try:
+        interval = int(sys.argv[2])
+    except:
+        interval = DEFAULT_INTERVAL
+    
+    if(mode == "time"):
+        write_realtime(interval, dev_fd)
+    elif(mode == "date"):
+        dev_fd.write(sixseg_display("only_date"))
+    elif(mode == "time_date_sw"):
+        interval_switch(interval, dev_fd)
     else:
-        interval_switch(DEFAULT_INTERVAL, sys.stdout)
+        assert 0, "Invalid option provided by user"
+
