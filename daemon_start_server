@@ -1,0 +1,75 @@
+#!/bin/sh
+
+NAME=`basename $0`
+PIDFILE="/var/run/si-server.pid"
+PYFILE="/home/root/tema2/web_server.py"
+LOGFILE="/var/log/si-server/srv_stdout.log"
+DNS_SERVER="8.8.8.8"
+PORT=80
+ 
+started()
+{
+	#Workaround, because busybox is dummy and does not support
+	#ps -p $PID_VAL
+        if [ -e $PIDFILE ]; then
+		VAR=$(ps | grep `cat $PIDFILE` | grep -v grep)
+		if [ -z "$VAR" ]; then
+			return 1
+		else
+			return 0
+		fi
+	else
+		return 1
+	fi
+}
+ 
+start()
+{
+	echo "nameserver $DNS_SERVER" > /etc/resolv.conf
+        if started
+        then
+                echo "$NAME is already started"
+                exit 0
+        fi
+        echo -ne "starting $NAME on port $PORT ...         "
+        echo > $PIDFILE || exit 1
+        mkdir $(dirname $LOGFILE) &> /dev/null
+	python $PYFILE $PORT &> $LOGFILE &
+
+        echo $! > $PIDFILE
+	echo " [  OK  ]"
+}
+ 
+stop()
+{
+        if started
+        then
+                echo "stopping $NAME"
+                kill `cat $PIDFILE`
+        else
+                echo "$NAME is already stopped"
+        fi
+}
+ 
+ 
+status()
+{
+        started && echo -n "started: " && cat $PIDFILE || echo "stopped"
+}
+ 
+ 
+restart()
+{
+    stop && start
+    return 0
+}
+ 
+ 
+case "$1" in
+        start) start ;;
+        stop)  stop ;;
+        restart) restart ;;
+        status) status ;;
+        *) echo "Usage: $0 {start|stop|restart|status}"
+           exit 1
+esac
