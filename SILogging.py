@@ -4,10 +4,17 @@ import subprocess
 import sys
 import os
 
+DEFAULT_LOG_FILE = '/var/log/si-server/actions.log'
+
+#Log rotation config vars:
+MAX_SIZE = 1000000 #in bytes
+BKP_CNT = 5     #number of backups
+
+
 class SILogging(object):
 
     def __init__(self,
-                log_filename='/var/log/si_server/actions.log'):
+                log_filename=DEFAULT_LOG_FILE):
 
         self.logger = logging.getLogger('Tema2SI_WebServer_Logger')
         self.filename = log_filename
@@ -29,8 +36,8 @@ class SILogging(object):
             # Add the log message handler to the logger
             # Using python's logrotation
             self.handler = logging.handlers.RotatingFileHandler(log_filename, mode='a',
-                                                            maxBytes=1000000,
-                                                            backupCount=5)
+                                                            maxBytes=MAX_SIZE,
+                                                            backupCount=BKP_CNT)
             self.handler.setFormatter(fmt)
             self.logger.addHandler(self.handler)
 
@@ -55,8 +62,8 @@ class SILogging(object):
         self.filename = new_filename
 
         self.handler = logging.handlers.RotatingFileHandler(new_filename, mode='a',
-                                                        maxBytes=1000000,
-                                                        backupCount=5)
+                                                        maxBytes=MAX_SIZE,
+                                                        backupCount=BKP_CNT)
         fmt = logging.Formatter("[%(asctime)s] %(name)s : %(levelname)s : %(message)s")
         self.handler.setFormatter(fmt)
         self.logger.addHandler(self.handler)
