@@ -48,10 +48,11 @@ class SILogging(object):
             self.logger.debug(message)
 
     def changeFilename(self, new_filename):
+    
+        self.logger.debug("Handlers: %s ", str(self.logger.handlers))
 
-        if(self.handler != None):
-            self.handler.close()
-            self.logger.removeHandler(self.handler)
+        self.logger.handlers[0].stream.close()
+        self.logger.removeHandler(self.logger.handlers[0])
 
         directory = os.path.dirname(new_filename)
         try:
@@ -60,11 +61,14 @@ class SILogging(object):
             os.mkdir(directory)
 
         self.filename = new_filename
-
-        self.handler = logging.handlers.RotatingFileHandler(new_filename, mode='a',
-                                                        maxBytes=MAX_SIZE,
-                                                        backupCount=BKP_CNT)
-        fmt = logging.Formatter("[%(asctime)s] %(name)s : %(levelname)s : %(message)s")
-        self.handler.setFormatter(fmt)
-        self.logger.addHandler(self.handler)
+        
+        if not len(self.logger.handlers):
+            self.handler = logging.handlers.RotatingFileHandler(new_filename, mode='a',
+                                                            maxBytes=MAX_SIZE,
+                                                            backupCount=BKP_CNT)
+            fmt = logging.Formatter("[%(asctime)s] %(name)s : %(levelname)s : %(message)s")
+            self.handler.setFormatter(fmt)
+            self.logger.addHandler(self.handler)
+            
+            self.logger.debug("Schimbarea fisierului de log a avut loc cu succes")
 
